@@ -14,7 +14,340 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      attendance: {
+        Row: {
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          status: Database["public"]["Enums"]["attendance_status"]
+          time_in: string | null
+          time_out: string | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          employee_id: string
+          id?: string
+          status?: Database["public"]["Enums"]["attendance_status"]
+          time_in?: string | null
+          time_out?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          status?: Database["public"]["Enums"]["attendance_status"]
+          time_in?: string | null
+          time_out?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          avatar_initials: string | null
+          created_at: string
+          department: string
+          email: string | null
+          id: string
+          join_date: string
+          name: string
+          phone: string | null
+          project_id: string | null
+          role: string
+          status: Database["public"]["Enums"]["employee_status"]
+          updated_at: string
+        }
+        Insert: {
+          avatar_initials?: string | null
+          created_at?: string
+          department: string
+          email?: string | null
+          id?: string
+          join_date?: string
+          name: string
+          phone?: string | null
+          project_id?: string | null
+          role: string
+          status?: Database["public"]["Enums"]["employee_status"]
+          updated_at?: string
+        }
+        Update: {
+          avatar_initials?: string | null
+          created_at?: string
+          department?: string
+          email?: string | null
+          id?: string
+          join_date?: string
+          name?: string
+          phone?: string | null
+          project_id?: string | null
+          role?: string
+          status?: Database["public"]["Enums"]["employee_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          date: string
+          description: string
+          id: string
+          project_id: string | null
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          date?: string
+          description: string
+          id?: string
+          project_id?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          project_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory: {
+        Row: {
+          created_at: string
+          id: string
+          last_updated: string
+          name: string
+          quantity: number
+          status: Database["public"]["Enums"]["inventory_status"]
+          threshold: number
+          unit: string
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_updated?: string
+          name: string
+          quantity?: number
+          status?: Database["public"]["Enums"]["inventory_status"]
+          threshold?: number
+          unit: string
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_updated?: string
+          name?: string
+          quantity?: number
+          status?: Database["public"]["Enums"]["inventory_status"]
+          threshold?: number
+          unit?: string
+          unit_price?: number
+        }
+        Relationships: []
+      }
+      inventory_movements: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          inventory_id: string
+          project: string | null
+          quantity: number
+          type: Database["public"]["Enums"]["movement_type"]
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          inventory_id: string
+          project?: string | null
+          quantity: number
+          type: Database["public"]["Enums"]["movement_type"]
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          inventory_id?: string
+          project?: string | null
+          quantity?: number
+          type?: Database["public"]["Enums"]["movement_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      materials: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          last_order: string | null
+          name: string
+          stock: number
+          supplier: string
+          unit: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          last_order?: string | null
+          name: string
+          stock?: number
+          supplier: string
+          unit: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          last_order?: string | null
+          name?: string
+          stock?: number
+          supplier?: string
+          unit?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payroll: {
+        Row: {
+          base_salary: number
+          created_at: string
+          deductions: number
+          employee_id: string
+          id: string
+          net_pay: number
+          overtime: number
+          period: string
+          status: Database["public"]["Enums"]["payment_status"]
+        }
+        Insert: {
+          base_salary?: number
+          created_at?: string
+          deductions?: number
+          employee_id: string
+          id?: string
+          net_pay?: number
+          overtime?: number
+          period: string
+          status?: Database["public"]["Enums"]["payment_status"]
+        }
+        Update: {
+          base_salary?: number
+          created_at?: string
+          deductions?: number
+          employee_id?: string
+          id?: string
+          net_pay?: number
+          overtime?: number
+          period?: string
+          status?: Database["public"]["Enums"]["payment_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          budget: number
+          client: string
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          location: string | null
+          name: string
+          progress: number
+          spent: number
+          start_date: string | null
+          status: Database["public"]["Enums"]["project_status"]
+          updated_at: string
+        }
+        Insert: {
+          budget?: number
+          client: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          progress?: number
+          spent?: number
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+        }
+        Update: {
+          budget?: number
+          client?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          progress?: number
+          spent?: number
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +356,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      attendance_status: "present" | "absent" | "late"
+      employee_status: "active" | "on-site" | "leave" | "inactive"
+      inventory_status: "normal" | "low"
+      movement_type: "in" | "out"
+      payment_status: "pending" | "paid"
+      project_status: "planning" | "in-progress" | "on-hold" | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +488,13 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      attendance_status: ["present", "absent", "late"],
+      employee_status: ["active", "on-site", "leave", "inactive"],
+      inventory_status: ["normal", "low"],
+      movement_type: ["in", "out"],
+      payment_status: ["pending", "paid"],
+      project_status: ["planning", "in-progress", "on-hold", "completed"],
+    },
   },
 } as const
