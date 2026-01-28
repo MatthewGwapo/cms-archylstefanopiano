@@ -5,15 +5,11 @@ import {
   Filter,
   MoreHorizontal,
   Phone,
-  Mail,
-  MapPin,
   Briefcase,
   Calendar,
-  CheckCircle2,
-  Clock,
-  User,
+  Loader2,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -25,106 +21,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-
-// Sample team data
-const teamMembers = [
-  {
-    id: 1,
-    name: "Engr. Roberto Santos",
-    role: "Site Engineer",
-    department: "Engineering",
-    status: "active",
-    project: "SM Lanang Premier Expansion",
-    phone: "+63 917 123 4567",
-    email: "r.santos@metalift.ph",
-    joinDate: "Jan 2020",
-    avatar: "RS",
-  },
-  {
-    id: 2,
-    name: "Maria Clara Reyes",
-    role: "Project Manager",
-    department: "Management",
-    status: "active",
-    project: "Davao IT Park Tower 3",
-    phone: "+63 918 234 5678",
-    email: "mc.reyes@metalift.ph",
-    joinDate: "Mar 2019",
-    avatar: "MR",
-  },
-  {
-    id: 3,
-    name: "Juan Dela Cruz",
-    role: "Mason",
-    department: "Construction",
-    status: "on-site",
-    project: "SM Lanang Premier Expansion",
-    phone: "+63 919 345 6789",
-    email: "j.delacruz@metalift.ph",
-    joinDate: "Aug 2022",
-    avatar: "JD",
-  },
-  {
-    id: 4,
-    name: "Pedro Aquino",
-    role: "Electrician",
-    department: "Electrical",
-    status: "on-site",
-    project: "Warehouse Renovation - DPWH",
-    phone: "+63 920 456 7890",
-    email: "p.aquino@metalift.ph",
-    joinDate: "Feb 2021",
-    avatar: "PA",
-  },
-  {
-    id: 5,
-    name: "Elena Villanueva",
-    role: "Finance Officer",
-    department: "Finance",
-    status: "active",
-    project: "Admin Office",
-    phone: "+63 921 567 8901",
-    email: "e.villanueva@metalift.ph",
-    joinDate: "Jun 2018",
-    avatar: "EV",
-  },
-  {
-    id: 6,
-    name: "Antonio Garcia",
-    role: "Heavy Equipment Operator",
-    department: "Operations",
-    status: "on-site",
-    project: "Davao IT Park Tower 3",
-    phone: "+63 922 678 9012",
-    email: "a.garcia@metalift.ph",
-    joinDate: "Oct 2020",
-    avatar: "AG",
-  },
-  {
-    id: 7,
-    name: "Rosa Martinez",
-    role: "Architect",
-    department: "Design",
-    status: "active",
-    project: "Residential Complex - Toril",
-    phone: "+63 923 789 0123",
-    email: "r.martinez@metalift.ph",
-    joinDate: "Apr 2019",
-    avatar: "RM",
-  },
-  {
-    id: 8,
-    name: "Carlos Mendoza",
-    role: "Foreman",
-    department: "Construction",
-    status: "on-site",
-    project: "Warehouse Renovation - DPWH",
-    phone: "+63 924 890 1234",
-    email: "c.mendoza@metalift.ph",
-    joinDate: "Dec 2017",
-    avatar: "CM",
-  },
-];
+import { useEmployees } from "@/hooks/useEmployees";
+import { EmployeeFormModal } from "@/components/team/EmployeeFormModal";
+import { EmployeeProfileModal } from "@/components/team/EmployeeProfileModal";
+import { Employee } from "@/types/database";
+import { format } from "date-fns";
+import { User, CheckCircle2, Clock, Users as UsersIcon } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; class: string }> = {
   active: { label: "Active", class: "badge-success" },
@@ -133,13 +35,19 @@ const statusConfig: Record<string, { label: string; class: string }> = {
   inactive: { label: "Inactive", class: "bg-muted text-muted-foreground" },
 };
 
-const departments = ["All", "Engineering", "Management", "Construction", "Electrical", "Finance", "Operations", "Design"];
+const departments = ["All", "Engineering", "Management", "Construction", "Electrical", "Finance", "Operations", "Design", "Administration"];
 
 export default function Team() {
+  const { data: employees, isLoading, error } = useEmployees();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("All");
+  const [formOpen, setFormOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [profileTab, setProfileTab] = useState<"profile" | "attendance" | "payroll">("profile");
 
-  const filteredMembers = teamMembers.filter((member) => {
+  const filteredMembers = (employees || []).filter((member) => {
     const matchesSearch =
       member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.role.toLowerCase().includes(searchQuery.toLowerCase());
@@ -147,6 +55,48 @@ export default function Team() {
       selectedDepartment === "All" || member.department === selectedDepartment;
     return matchesSearch && matchesDepartment;
   });
+
+  const handleViewProfile = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setProfileTab("profile");
+    setProfileOpen(true);
+  };
+
+  const handleEditDetails = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setFormOpen(true);
+  };
+
+  const handleViewAttendance = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setProfileTab("attendance");
+    setProfileOpen(true);
+  };
+
+  const handleViewPayroll = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setProfileTab("payroll");
+    setProfileOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setFormOpen(false);
+    setEditingEmployee(null);
+  };
+
+  // Stats calculation
+  const totalEmployees = employees?.length || 0;
+  const onSiteCount = filteredMembers.filter((m) => m.status === "on-site").length;
+  const onLeaveCount = filteredMembers.filter((m) => m.status === "leave").length;
+  const uniqueDepartments = new Set(employees?.map((e) => e.department) || []).size;
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-destructive">Error loading employees: {error.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -158,7 +108,10 @@ export default function Team() {
             Manage employees, attendance, and assignments
           </p>
         </div>
-        <Button className="bg-gradient-orange hover:opacity-90 text-accent-foreground gap-2">
+        <Button 
+          className="bg-gradient-orange hover:opacity-90 text-accent-foreground gap-2"
+          onClick={() => setFormOpen(true)}
+        >
           <Plus className="h-4 w-4" />
           Add Employee
         </Button>
@@ -173,7 +126,7 @@ export default function Team() {
                 <User className="h-5 w-5 text-success" />
               </div>
               <div>
-                <p className="text-2xl font-bold">47</p>
+                <p className="text-2xl font-bold">{totalEmployees}</p>
                 <p className="text-sm text-muted-foreground">Total Employees</p>
               </div>
             </div>
@@ -186,7 +139,7 @@ export default function Team() {
                 <CheckCircle2 className="h-5 w-5 text-info" />
               </div>
               <div>
-                <p className="text-2xl font-bold">35</p>
+                <p className="text-2xl font-bold">{onSiteCount}</p>
                 <p className="text-sm text-muted-foreground">On-Site Today</p>
               </div>
             </div>
@@ -199,7 +152,7 @@ export default function Team() {
                 <Clock className="h-5 w-5 text-warning" />
               </div>
               <div>
-                <p className="text-2xl font-bold">3</p>
+                <p className="text-2xl font-bold">{onLeaveCount}</p>
                 <p className="text-sm text-muted-foreground">On Leave</p>
               </div>
             </div>
@@ -209,10 +162,10 @@ export default function Team() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-accent/10 p-2">
-                <Briefcase className="h-5 w-5 text-accent" />
+                <UsersIcon className="h-5 w-5 text-accent" />
               </div>
               <div>
-                <p className="text-2xl font-bold">5</p>
+                <p className="text-2xl font-bold">{uniqueDepartments}</p>
                 <p className="text-sm text-muted-foreground">Departments</p>
               </div>
             </div>
@@ -253,67 +206,106 @@ export default function Team() {
       </div>
 
       {/* Team Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredMembers.map((member, index) => {
-          const statusInfo = statusConfig[member.status];
-          return (
-            <Card
-              key={member.id}
-              className="card-hover"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-4">
-                  <Avatar className="h-12 w-12 bg-accent/10 text-accent">
-                    <AvatarFallback className="bg-accent/10 text-accent font-semibold">
-                      {member.avatar}
-                    </AvatarFallback>
-                  </Avatar>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Profile</DropdownMenuItem>
-                      <DropdownMenuItem>Edit Details</DropdownMenuItem>
-                      <DropdownMenuItem>View Attendance</DropdownMenuItem>
-                      <DropdownMenuItem>View Payroll</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <h3 className="font-semibold">{member.name}</h3>
-                    <p className="text-sm text-muted-foreground">{member.role}</p>
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        </div>
+      ) : filteredMembers.length === 0 ? (
+        <Card className="p-8 text-center">
+          <p className="text-muted-foreground">
+            {searchQuery || selectedDepartment !== "All" 
+              ? "No employees match your search." 
+              : "No employees yet. Add your first team member!"}
+          </p>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredMembers.map((member, index) => {
+            const statusInfo = statusConfig[member.status] || statusConfig.active;
+            return (
+              <Card
+                key={member.id}
+                className="card-hover"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-4">
+                    <Avatar className="h-12 w-12 bg-accent/10 text-accent">
+                      <AvatarFallback className="bg-accent/10 text-accent font-semibold">
+                        {member.avatar_initials || member.name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleViewProfile(member)}>
+                          View Profile
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditDetails(member)}>
+                          Edit Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleViewAttendance(member)}>
+                          View Attendance
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleViewPayroll(member)}>
+                          View Payroll
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
-                  <Badge className={cn("border text-xs", statusInfo.class)}>
-                    {statusInfo.label}
-                  </Badge>
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="font-semibold">{member.name}</h3>
+                      <p className="text-sm text-muted-foreground">{member.role}</p>
+                    </div>
 
-                  <div className="space-y-2 pt-2 border-t border-border">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Briefcase className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{member.project}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="h-3.5 w-3.5 shrink-0" />
-                      <span>{member.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-3.5 w-3.5 shrink-0" />
-                      <span>Since {member.joinDate}</span>
+                    <Badge className={cn("border text-xs", statusInfo.class)}>
+                      {statusInfo.label}
+                    </Badge>
+
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Briefcase className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">
+                          {member.project?.name || "No project assigned"}
+                        </span>
+                      </div>
+                      {member.phone && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Phone className="h-3.5 w-3.5 shrink-0" />
+                          <span>{member.phone}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5 shrink-0" />
+                        <span>Since {format(new Date(member.join_date), "MMM yyyy")}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modals */}
+      <EmployeeFormModal 
+        open={formOpen} 
+        onOpenChange={handleCloseForm}
+        employee={editingEmployee}
+      />
+      <EmployeeProfileModal 
+        open={profileOpen} 
+        onOpenChange={setProfileOpen}
+        employee={selectedEmployee}
+        defaultTab={profileTab}
+      />
     </div>
   );
 }
