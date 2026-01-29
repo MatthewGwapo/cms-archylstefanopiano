@@ -76,7 +76,7 @@ export function ExpenseFormModal({ open, onOpenChange }: ExpenseFormModalProps) 
         description: values.description,
         category: values.category,
         amount: values.amount,
-        project_id: values.project_id || null,
+        project_id: values.project_id === "__all__" ? null : values.project_id || null,
         date: values.date,
       });
       form.reset();
@@ -166,8 +166,8 @@ export function ExpenseFormModal({ open, onOpenChange }: ExpenseFormModalProps) 
                           <SelectValue placeholder="All Projects" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="">All Projects</SelectItem>
+                    <SelectContent>
+                        <SelectItem value="__all__">All Projects</SelectItem>
                         {projects?.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
                             {project.name}

@@ -72,7 +72,7 @@ export function AddStockModal({
         inventory_id: values.inventory_id,
         type: values.type,
         quantity: values.quantity,
-        project: values.project || undefined,
+        project: values.project === "__general__" ? undefined : values.project || undefined,
       });
       form.reset();
       onOpenChange(false);
@@ -169,7 +169,7 @@ export function AddStockModal({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">General / Warehouse</SelectItem>
+                      <SelectItem value="__general__">General / Warehouse</SelectItem>
                       {projects?.map((project) => (
                         <SelectItem key={project.id} value={project.name}>
                           {project.name}
