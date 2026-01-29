@@ -1,6 +1,7 @@
 import { Bell, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 
 export function AppHeader() {
   return (
@@ -19,12 +20,7 @@ export function AppHeader() {
       {/* Right Side Actions */}
       <div className="flex items-center gap-3">
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-accent-foreground">
-            3
-          </span>
-        </Button>
+        <NotificationPanel />
 
         {/* User */}
         <div className="flex items-center gap-3 pl-3 border-l border-border">

@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,10 +27,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useExpenses, usePayroll, useUpdatePayrollStatus } from "@/hooks/useFinance";
 import { ExpenseFormModal } from "@/components/finance/ExpenseFormModal";
-import { format } from "date-fns";
+import { PayrollRequestModal } from "@/components/finance/PayrollRequestModal";
+import { format, subDays, subMonths, isAfter } from "date-fns";
 import { toast } from "sonner";
 
 const statusConfig: Record<string, { label: string; class: string }> = {
@@ -38,13 +47,18 @@ const statusConfig: Record<string, { label: string; class: string }> = {
   paid: { label: "Paid", class: "badge-success" },
 };
 
+const categories = ["All", "Materials", "Labor", "Equipment", "Utilities", "Transportation", "Subcontractor", "Administrative", "Other"];
+
 export default function Finance() {
   const { data: expenses, isLoading: expensesLoading } = useExpenses();
   const { data: payroll, isLoading: payrollLoading } = usePayroll();
   const updatePayrollStatus = useUpdatePayrollStatus();
   
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [dateFilter, setDateFilter] = useState("all");
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [payrollModalOpen, setPayrollModalOpen] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-PH", {
@@ -54,10 +68,31 @@ export default function Finance() {
     }).format(amount);
   };
 
-  const filteredExpenses = (expenses || []).filter((expense) =>
-    expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    expense.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const getDateFilterStart = () => {
+    switch (dateFilter) {
+      case "7days":
+        return subDays(new Date(), 7);
+      case "30days":
+        return subDays(new Date(), 30);
+      case "3months":
+        return subMonths(new Date(), 3);
+      default:
+        return null;
+    }
+  };
+
+  const filteredExpenses = (expenses || []).filter((expense) => {
+    const matchesSearch = 
+      expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (expense.project?.name && expense.project.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesCategory = selectedCategory === "All" || expense.category === selectedCategory;
+    
+    const dateStart = getDateFilterStart();
+    const matchesDate = !dateStart || isAfter(new Date(expense.date), dateStart);
+    
+    return matchesSearch && matchesCategory && matchesDate;
+  });
 
   const filteredPayroll = (payroll || []).filter((record) =>
     record.employee?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -69,7 +104,7 @@ export default function Finance() {
   };
 
   const handleExportReport = () => {
-    const expenseData = (expenses || []).map((e) => ({
+    const expenseData = filteredExpenses.map((e) => ({
       description: e.description,
       category: e.category,
       amount: e.amount,
@@ -81,11 +116,23 @@ export default function Finance() {
 FINANCE REPORT
 ==============
 Generated: ${format(new Date(), "MMMM dd, yyyy 'at' h:mm a")}
+Filter: ${selectedCategory !== "All" ? selectedCategory : "All Categories"} | ${dateFilter !== "all" ? dateFilter : "All Time"}
 
 EXPENSE SUMMARY
 ---------------
-Total Expenses: ${formatCurrency((expenses || []).reduce((sum, e) => sum + e.amount, 0))}
-Number of Records: ${expenses?.length || 0}
+Total Expenses: ${formatCurrency(filteredExpenses.reduce((sum, e) => sum + e.amount, 0))}
+Number of Records: ${filteredExpenses.length}
+
+EXPENSE BREAKDOWN BY CATEGORY
+-----------------------------
+${Object.entries(
+  filteredExpenses.reduce((acc, e) => {
+    acc[e.category] = (acc[e.category] || 0) + e.amount;
+    return acc;
+  }, {} as Record<string, number>)
+)
+  .map(([cat, amount]) => `${cat}: ${formatCurrency(amount)}`)
+  .join("\n")}
 
 EXPENSE DETAILS
 ---------------
@@ -96,6 +143,10 @@ PAYROLL SUMMARY
 Total Payroll: ${formatCurrency((payroll || []).reduce((sum, p) => sum + p.net_pay, 0))}
 Pending: ${(payroll || []).filter((p) => p.status === "pending").length} records
 Paid: ${(payroll || []).filter((p) => p.status === "paid").length} records
+
+PAYROLL DETAILS
+---------------
+${(payroll || []).map((p) => `${p.period} | ${p.employee?.name} | ${formatCurrency(p.net_pay)} | ${p.status}`).join("\n")}
     `.trim();
 
     const blob = new Blob([report], { type: "text/plain" });
@@ -112,9 +163,10 @@ Paid: ${(payroll || []).filter((p) => p.status === "paid").length} records
   };
 
   // Calculate stats
-  const totalExpenses = (expenses || []).reduce((sum, e) => sum + e.amount, 0);
+  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
   const totalPayroll = (payroll || []).reduce((sum, p) => sum + p.net_pay, 0);
   const pendingCount = (payroll || []).filter((p) => p.status === "pending").length;
+  const materialsCost = filteredExpenses.filter((e) => e.category === "Materials").reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -126,10 +178,14 @@ Paid: ${(payroll || []).filter((p) => p.status === "paid").length} records
             Track expenses, payroll, and financial reports
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" className="gap-2" onClick={handleExportReport}>
             <Download className="h-4 w-4" />
             Export Report
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => setPayrollModalOpen(true)}>
+            <FileText className="h-4 w-4" />
+            Payroll Request
           </Button>
           <Button 
             className="bg-gradient-orange hover:opacity-90 text-accent-foreground gap-2"
@@ -151,7 +207,7 @@ Paid: ${(payroll || []).filter((p) => p.status === "paid").length} records
                 <p className="text-2xl font-bold mt-1">{formatCurrency(totalExpenses)}</p>
                 <div className="flex items-center gap-1 mt-1 text-muted-foreground text-sm">
                   <Receipt className="h-3.5 w-3.5" />
-                  <span>{expenses?.length || 0} records</span>
+                  <span>{filteredExpenses.length} records</span>
                 </div>
               </div>
               <div className="rounded-lg bg-accent/10 p-3">
@@ -182,9 +238,7 @@ Paid: ${(payroll || []).filter((p) => p.status === "paid").length} records
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Materials Cost</p>
-                <p className="text-2xl font-bold mt-1">
-                  {formatCurrency((expenses || []).filter((e) => e.category === "Materials").reduce((sum, e) => sum + e.amount, 0))}
-                </p>
+                <p className="text-2xl font-bold mt-1">{formatCurrency(materialsCost)}</p>
                 <div className="flex items-center gap-1 mt-1 text-muted-foreground text-sm">
                   <ArrowUpRight className="h-3.5 w-3.5" />
                   <span>Materials category</span>
@@ -222,7 +276,7 @@ Paid: ${(payroll || []).filter((p) => p.status === "paid").length} records
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="payroll">Payroll</TabsTrigger>
           </TabsList>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <div className="relative max-w-xs">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -232,9 +286,27 @@ Paid: ${(payroll || []).filter((p) => p.status === "paid").length} records
                 className="pl-10"
               />
             </div>
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Date Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="7days">Last 7 Days</SelectItem>
+                <SelectItem value="30days">Last 30 Days</SelectItem>
+                <SelectItem value="3months">Last 3 Months</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -250,7 +322,9 @@ Paid: ${(payroll || []).filter((p) => p.status === "paid").length} records
                 </div>
               ) : filteredExpenses.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  {searchQuery ? "No expenses match your search." : "No expense records yet."}
+                  {searchQuery || selectedCategory !== "All" || dateFilter !== "all" 
+                    ? "No expenses match your filters." 
+                    : "No expense records yet."}
                 </p>
               ) : (
                 <Table>
@@ -365,6 +439,10 @@ Paid: ${(payroll || []).filter((p) => p.status === "paid").length} records
       <ExpenseFormModal 
         open={expenseModalOpen} 
         onOpenChange={setExpenseModalOpen}
+      />
+      <PayrollRequestModal
+        open={payrollModalOpen}
+        onOpenChange={setPayrollModalOpen}
       />
     </div>
   );

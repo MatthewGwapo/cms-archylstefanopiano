@@ -8,6 +8,10 @@ import {
   Briefcase,
   Calendar,
   Loader2,
+  FileText,
+  ClipboardCheck,
+  UserCog,
+  FileCheck,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,15 +22,30 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { useEmployees } from "@/hooks/useEmployees";
+import { useEmployees, useUpdateEmployee } from "@/hooks/useEmployees";
+import { useProjects } from "@/hooks/useProjects";
 import { EmployeeFormModal } from "@/components/team/EmployeeFormModal";
 import { EmployeeProfileModal } from "@/components/team/EmployeeProfileModal";
+import { ProgressReportModal } from "@/components/team/ProgressReportModal";
+import { ViewProgressReportsModal } from "@/components/team/ViewProgressReportsModal";
+import { AttendanceRecordModal } from "@/components/team/AttendanceRecordModal";
+import { ProfileUpdateRequestModal } from "@/components/team/ProfileUpdateRequestModal";
+import { ReviewProfileUpdatesModal } from "@/components/team/ReviewProfileUpdatesModal";
 import { Employee } from "@/types/database";
 import { format } from "date-fns";
 import { User, CheckCircle2, Clock, Users as UsersIcon } from "lucide-react";
+import { toast } from "sonner";
 
 const statusConfig: Record<string, { label: string; class: string }> = {
   active: { label: "Active", class: "badge-success" },
@@ -39,21 +58,35 @@ const departments = ["All", "Engineering", "Management", "Construction", "Electr
 
 export default function Team() {
   const { data: employees, isLoading, error } = useEmployees();
+  const { data: projects } = useProjects();
+  const updateEmployee = useUpdateEmployee();
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("All");
+  const [selectedStatus, setSelectedStatus] = useState("all");
   const [formOpen, setFormOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [profileTab, setProfileTab] = useState<"profile" | "attendance" | "payroll">("profile");
+  
+  // New modal states
+  const [progressReportOpen, setProgressReportOpen] = useState(false);
+  const [viewReportsOpen, setViewReportsOpen] = useState(false);
+  const [attendanceRecordOpen, setAttendanceRecordOpen] = useState(false);
+  const [profileUpdateOpen, setProfileUpdateOpen] = useState(false);
+  const [reviewUpdatesOpen, setReviewUpdatesOpen] = useState(false);
 
   const filteredMembers = (employees || []).filter((member) => {
     const matchesSearch =
       member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.role.toLowerCase().includes(searchQuery.toLowerCase());
+      member.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.email && member.email.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesDepartment =
       selectedDepartment === "All" || member.department === selectedDepartment;
-    return matchesSearch && matchesDepartment;
+    const matchesStatus =
+      selectedStatus === "all" || member.status === selectedStatus;
+    return matchesSearch && matchesDepartment && matchesStatus;
   });
 
   const handleViewProfile = (employee: Employee) => {
@@ -79,6 +112,28 @@ export default function Team() {
     setProfileOpen(true);
   };
 
+  const handleSubmitReport = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setProgressReportOpen(true);
+  };
+
+  const handleRequestProfileUpdate = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setProfileUpdateOpen(true);
+  };
+
+  const handleAssignToProject = async (employee: Employee, projectId: string | null) => {
+    try {
+      await updateEmployee.mutateAsync({
+        id: employee.id,
+        project_id: projectId,
+      });
+      toast.success(`${employee.name} ${projectId ? "assigned to project" : "unassigned from project"}`);
+    } catch (error) {
+      // Error handled by hook
+    }
+  };
+
   const handleCloseForm = () => {
     setFormOpen(false);
     setEditingEmployee(null);
@@ -86,8 +141,8 @@ export default function Team() {
 
   // Stats calculation
   const totalEmployees = employees?.length || 0;
-  const onSiteCount = filteredMembers.filter((m) => m.status === "on-site").length;
-  const onLeaveCount = filteredMembers.filter((m) => m.status === "leave").length;
+  const onSiteCount = (employees || []).filter((m) => m.status === "on-site").length;
+  const onLeaveCount = (employees || []).filter((m) => m.status === "leave").length;
   const uniqueDepartments = new Set(employees?.map((e) => e.department) || []).size;
 
   if (error) {
@@ -108,13 +163,27 @@ export default function Team() {
             Manage employees, attendance, and assignments
           </p>
         </div>
-        <Button 
-          className="bg-gradient-orange hover:opacity-90 text-accent-foreground gap-2"
-          onClick={() => setFormOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Add Employee
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" className="gap-2" onClick={() => setAttendanceRecordOpen(true)}>
+            <ClipboardCheck className="h-4 w-4" />
+            Record Attendance
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => setViewReportsOpen(true)}>
+            <FileText className="h-4 w-4" />
+            View Reports
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => setReviewUpdatesOpen(true)}>
+            <UserCog className="h-4 w-4" />
+            Profile Updates
+          </Button>
+          <Button 
+            className="bg-gradient-orange hover:opacity-90 text-accent-foreground gap-2"
+            onClick={() => setFormOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Add Employee
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -178,12 +247,24 @@ export default function Team() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search employees..."
+            placeholder="Search by name, role, or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
           />
         </div>
+        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="on-site">On-Site</SelectItem>
+            <SelectItem value="leave">On Leave</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="flex gap-2 flex-wrap">
           {departments.slice(0, 5).map((dept) => (
             <Button
@@ -198,10 +279,21 @@ export default function Team() {
               {dept}
             </Button>
           ))}
-          <Button variant="outline" size="sm" className="gap-2">
-            <Filter className="h-4 w-4" />
-            More
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Filter className="h-4 w-4" />
+                More
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {departments.slice(5).map((dept) => (
+                <DropdownMenuItem key={dept} onClick={() => setSelectedDepartment(dept)}>
+                  {dept}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -213,7 +305,7 @@ export default function Team() {
       ) : filteredMembers.length === 0 ? (
         <Card className="p-8 text-center">
           <p className="text-muted-foreground">
-            {searchQuery || selectedDepartment !== "All" 
+            {searchQuery || selectedDepartment !== "All" || selectedStatus !== "all"
               ? "No employees match your search." 
               : "No employees yet. Add your first team member!"}
           </p>
@@ -254,6 +346,30 @@ export default function Team() {
                         <DropdownMenuItem onClick={() => handleViewPayroll(member)}>
                           View Payroll
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleSubmitReport(member)}>
+                          <FileCheck className="h-4 w-4 mr-2" />
+                          Submit Progress Report
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRequestProfileUpdate(member)}>
+                          <UserCog className="h-4 w-4 mr-2" />
+                          Request Profile Update
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                          <span className="text-muted-foreground text-xs">Assign to Project:</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAssignToProject(member, null)}>
+                          No Project
+                        </DropdownMenuItem>
+                        {projects?.slice(0, 5).map((project) => (
+                          <DropdownMenuItem
+                            key={project.id}
+                            onClick={() => handleAssignToProject(member, project.id)}
+                          >
+                            {project.name}
+                          </DropdownMenuItem>
+                        ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -305,6 +421,28 @@ export default function Team() {
         onOpenChange={setProfileOpen}
         employee={selectedEmployee}
         defaultTab={profileTab}
+      />
+      <ProgressReportModal
+        open={progressReportOpen}
+        onOpenChange={setProgressReportOpen}
+        employee={selectedEmployee}
+      />
+      <ViewProgressReportsModal
+        open={viewReportsOpen}
+        onOpenChange={setViewReportsOpen}
+      />
+      <AttendanceRecordModal
+        open={attendanceRecordOpen}
+        onOpenChange={setAttendanceRecordOpen}
+      />
+      <ProfileUpdateRequestModal
+        open={profileUpdateOpen}
+        onOpenChange={setProfileUpdateOpen}
+        employee={selectedEmployee}
+      />
+      <ReviewProfileUpdatesModal
+        open={reviewUpdatesOpen}
+        onOpenChange={setReviewUpdatesOpen}
       />
     </div>
   );

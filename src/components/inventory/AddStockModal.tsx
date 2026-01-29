@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -29,6 +29,7 @@ import {
 import { useAddStock } from "@/hooks/useInventory";
 import { useInventory } from "@/hooks/useInventory";
 import { useProjects } from "@/hooks/useProjects";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 
 const stockSchema = z.object({
   inventory_id: z.string().min(1, "Select an item"),
@@ -66,6 +67,17 @@ export function AddStockModal({
     },
   });
 
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        inventory_id: defaultInventoryId || "",
+        type: defaultType,
+        quantity: 1,
+        project: "",
+      });
+    }
+  }, [open, defaultType, defaultInventoryId, form]);
+
   const onSubmit = async (values: StockFormValues) => {
     try {
       await addStock.mutateAsync({
@@ -81,13 +93,22 @@ export function AddStockModal({
     }
   };
 
+  const isStockIn = form.watch("type") === "in";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Stock Movement</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {isStockIn ? (
+              <ArrowDownRight className="h-5 w-5 text-success" />
+            ) : (
+              <ArrowUpRight className="h-5 w-5 text-accent" />
+            )}
+            {isStockIn ? "Stock In (Receive)" : "Stock Out (Use)"}
+          </DialogTitle>
           <DialogDescription>
-            Record stock in or out movement
+            {isStockIn ? "Record materials received into inventory" : "Record materials used from inventory"}
           </DialogDescription>
         </DialogHeader>
 

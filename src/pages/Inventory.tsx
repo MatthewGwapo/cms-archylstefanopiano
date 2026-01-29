@@ -10,6 +10,7 @@ import {
   ArrowDownRight,
   History,
   Loader2,
+  Settings,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,23 +25,44 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useInventory, useInventoryMovements } from "@/hooks/useInventory";
 import { AddStockModal } from "@/components/inventory/AddStockModal";
 import { InventoryHistoryModal } from "@/components/inventory/InventoryHistoryModal";
+import { SetThresholdModal } from "@/components/inventory/SetThresholdModal";
 import { format } from "date-fns";
+import { InventoryItem } from "@/types/database";
 
 export default function Inventory() {
   const { data: inventory, isLoading: inventoryLoading } = useInventory();
   const { data: movements } = useInventoryMovements();
   
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [addStockOpen, setAddStockOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [thresholdOpen, setThresholdOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [stockType, setStockType] = useState<"in" | "out">("in");
 
-  const filteredItems = (inventory || []).filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = (inventory || []).filter((item) => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-PH", {
@@ -48,6 +70,16 @@ export default function Inventory() {
       currency: "PHP",
       minimumFractionDigits: 0,
     }).format(amount);
+  };
+
+  const handleAddStock = (type: "in" | "out") => {
+    setStockType(type);
+    setAddStockOpen(true);
+  };
+
+  const handleSetThreshold = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setThresholdOpen(true);
   };
 
   // Calculate stats
@@ -70,13 +102,24 @@ export default function Inventory() {
             <History className="h-4 w-4" />
             View History
           </Button>
-          <Button 
-            className="bg-gradient-orange hover:opacity-90 text-accent-foreground gap-2"
-            onClick={() => setAddStockOpen(true)}
-          >
-            <Plus className="h-4 w-4" />
-            Add Stock
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="bg-gradient-orange hover:opacity-90 text-accent-foreground gap-2">
+                <Plus className="h-4 w-4" />
+                Stock Movement
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleAddStock("in")}>
+                <ArrowDownRight className="h-4 w-4 mr-2 text-success" />
+                Stock In (Receive)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleAddStock("out")}>
+                <ArrowUpRight className="h-4 w-4 mr-2 text-accent" />
+                Stock Out (Use)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -151,9 +194,16 @@ export default function Inventory() {
                   className="pl-10 w-48"
                 />
               </div>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="low">Low Stock</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
           <CardContent>
@@ -163,7 +213,7 @@ export default function Inventory() {
               </div>
             ) : filteredItems.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
-                {searchQuery ? "No items match your search." : "No inventory items yet."}
+                {searchQuery || statusFilter !== "all" ? "No items match your search." : "No inventory items yet."}
               </p>
             ) : (
               <Table>
@@ -173,6 +223,7 @@ export default function Inventory() {
                     <TableHead>Stock Level</TableHead>
                     <TableHead className="text-right">Value</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -218,6 +269,16 @@ export default function Inventory() {
                           ) : (
                             <Badge className="badge-success border">Normal</Badge>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleSetThreshold(item)}
+                          >
+                            <Settings className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -281,10 +342,16 @@ export default function Inventory() {
       <AddStockModal 
         open={addStockOpen} 
         onOpenChange={setAddStockOpen}
+        defaultType={stockType}
       />
       <InventoryHistoryModal 
         open={historyOpen} 
         onOpenChange={setHistoryOpen}
+      />
+      <SetThresholdModal
+        open={thresholdOpen}
+        onOpenChange={setThresholdOpen}
+        item={selectedItem}
       />
     </div>
   );

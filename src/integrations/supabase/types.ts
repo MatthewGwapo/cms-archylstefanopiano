@@ -52,6 +52,41 @@ export type Database = {
           },
         ]
       }
+      employee_documents: {
+        Row: {
+          document_type: string
+          employee_id: string
+          file_url: string | null
+          id: string
+          name: string
+          uploaded_at: string
+        }
+        Insert: {
+          document_type: string
+          employee_id: string
+          file_url?: string | null
+          id?: string
+          name: string
+          uploaded_at?: string
+        }
+        Update: {
+          document_type?: string
+          employee_id?: string
+          file_url?: string | null
+          id?: string
+          name?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           avatar_initials: string | null
@@ -217,6 +252,44 @@ export type Database = {
           },
         ]
       }
+      material_history: {
+        Row: {
+          action: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          material_id: string
+          new_values: Json | null
+          old_values: Json | null
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          material_id: string
+          new_values?: Json | null
+          old_values?: Json | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          material_id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_history_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       materials: {
         Row: {
           category: string
@@ -253,6 +326,36 @@ export type Database = {
           unit?: string
           unit_price?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          link: string | null
+          message: string
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message: string
+          title: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string
+          title?: string
+          type?: string
         }
         Relationships: []
       }
@@ -296,6 +399,98 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_update_requests: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          requested_changes: Json
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          requested_changes: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          requested_changes?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_update_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      progress_reports: {
+        Row: {
+          created_at: string
+          description: string
+          employee_id: string
+          hours_worked: number | null
+          id: string
+          project_id: string | null
+          report_date: string
+          review_notes: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          employee_id: string
+          hours_worked?: number | null
+          id?: string
+          project_id?: string | null
+          report_date?: string
+          review_notes?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          employee_id?: string
+          hours_worked?: number | null
+          id?: string
+          project_id?: string | null
+          report_date?: string
+          review_notes?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progress_reports_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progress_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -344,6 +539,39 @@ export type Database = {
           spent?: number
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          contact: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          products: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          contact?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          products?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          contact?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          products?: string[] | null
           updated_at?: string
         }
         Relationships: []
