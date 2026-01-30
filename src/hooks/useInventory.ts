@@ -106,16 +106,21 @@ export function useAddStock() {
       // First, get current inventory
       const { data: currentItem, error: fetchError } = await supabase
         .from("inventory")
-        .select("quantity")
+        .select("quantity, name")
         .eq("id", inventory_id)
         .single();
       
       if (fetchError) throw fetchError;
       
+      // Validate stock out - prevent negative stock
+      if (type === "out" && currentItem.quantity < quantity) {
+        throw new Error(`Insufficient stock. Available: ${currentItem.quantity}, Requested: ${quantity}`);
+      }
+      
       // Calculate new quantity
       const newQuantity = type === "in" 
         ? currentItem.quantity + quantity
-        : Math.max(0, currentItem.quantity - quantity);
+        : currentItem.quantity - quantity;
       
       // Update inventory
       const { error: updateError } = await supabase
