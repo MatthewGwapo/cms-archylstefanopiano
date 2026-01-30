@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -73,12 +73,28 @@ export function EmployeeFormModal({ open, onOpenChange, employee }: EmployeeForm
       role: employee?.role || "",
       department: employee?.department || "",
       status: (employee?.status as EmployeeStatus) || "active",
-      project_id: employee?.project_id || null,
+      project_id: employee?.project_id || "__none__",
       phone: employee?.phone || "",
       email: employee?.email || "",
       join_date: employee?.join_date || new Date().toISOString().split("T")[0],
     },
   });
+
+  // Reset form when employee changes or modal opens
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        name: employee?.name || "",
+        role: employee?.role || "",
+        department: employee?.department || "",
+        status: (employee?.status as EmployeeStatus) || "active",
+        project_id: employee?.project_id || "__none__",
+        phone: employee?.phone || "",
+        email: employee?.email || "",
+        join_date: employee?.join_date || new Date().toISOString().split("T")[0],
+      });
+    }
+  }, [open, employee, form]);
 
   const onSubmit = async (values: EmployeeFormValues) => {
     try {
@@ -87,7 +103,7 @@ export function EmployeeFormModal({ open, onOpenChange, employee }: EmployeeForm
         role: values.role,
         department: values.department,
         status: values.status,
-        project_id: values.project_id || null,
+        project_id: values.project_id === "__none__" ? null : values.project_id || null,
         phone: values.phone,
         email: values.email || undefined,
         join_date: values.join_date,
@@ -225,7 +241,7 @@ export function EmployeeFormModal({ open, onOpenChange, employee }: EmployeeForm
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">No project assigned</SelectItem>
+                      <SelectItem value="__none__">No project assigned</SelectItem>
                       {projects?.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.name}

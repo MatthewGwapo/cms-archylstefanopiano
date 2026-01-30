@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -67,6 +67,22 @@ export function ProjectFormModal({ open, onOpenChange, project }: ProjectFormMod
       description: project?.description || "",
     },
   });
+
+  // Reset form when project changes or modal opens
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        name: project?.name || "",
+        client: project?.client || "",
+        location: project?.location || "",
+        status: (project?.status as ProjectStatus) || "planning",
+        budget: project?.budget || 0,
+        start_date: project?.start_date || "",
+        end_date: project?.end_date || "",
+        description: project?.description || "",
+      });
+    }
+  }, [open, project, form]);
 
   const onSubmit = async (values: ProjectFormValues) => {
     try {
