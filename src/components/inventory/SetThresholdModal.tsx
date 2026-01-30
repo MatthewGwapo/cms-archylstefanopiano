@@ -19,43 +19,57 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useUpdateInventoryItem } from "@/hooks/useInventory";
-import { InventoryItem } from "@/types/database";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useMaterials, useUpdateMaterial } from "@/hooks/useMaterials";
+import { Material } from "@/types/database";
 import { Loader2, AlertTriangle } from "lucide-react";
 
 const formSchema = z.object({
+  material_id: z.string().min(1, "Select a material"),
   threshold: z.number().min(0, "Threshold must be 0 or greater"),
 });
 
 interface SetThresholdModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  item: InventoryItem | null;
+  item?: Material | null;
 }
 
 export function SetThresholdModal({ open, onOpenChange, item }: SetThresholdModalProps) {
-  const updateItem = useUpdateInventoryItem();
+  const { data: materials } = useMaterials();
+  const updateMaterial = useUpdateMaterial();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      threshold: item?.threshold || 10,
+      material_id: item?.id || "",
+      threshold: 10,
     },
   });
 
   useEffect(() => {
     if (item) {
       form.reset({
-        threshold: item.threshold,
+        material_id: item.id,
+        threshold: 10,
+      });
+    } else {
+      form.reset({
+        material_id: "",
+        threshold: 10,
       });
     }
   }, [item, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!item) return;
-    
-    await updateItem.mutateAsync({
-      id: item.id,
+    await updateMaterial.mutateAsync({
+      id: values.material_id,
       threshold: values.threshold,
     });
     onOpenChange(false);
@@ -68,17 +82,33 @@ export function SetThresholdModal({ open, onOpenChange, item }: SetThresholdModa
           <DialogTitle>Set Stock Threshold</DialogTitle>
         </DialogHeader>
         
-        {item && (
-          <div className="p-3 bg-muted/50 rounded-lg mb-4">
-            <p className="font-medium">{item.name}</p>
-            <p className="text-sm text-muted-foreground">
-              Current stock: {item.quantity} {item.unit}
-            </p>
-          </div>
-        )}
-
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="material_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Material *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select material" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {materials?.map((mat) => (
+                        <SelectItem key={mat.id} value={mat.id}>
+                          {mat.name} (Stock: {mat.stock} {mat.unit})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="threshold"
@@ -106,8 +136,8 @@ export function SetThresholdModal({ open, onOpenChange, item }: SetThresholdModa
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={updateItem.isPending}>
-                {updateItem.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={updateMaterial.isPending}>
+                {updateMaterial.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Threshold
               </Button>
             </div>

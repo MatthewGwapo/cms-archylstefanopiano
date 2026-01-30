@@ -299,6 +299,7 @@ export type Database = {
           name: string
           stock: number
           supplier: string
+          threshold: number | null
           unit: string
           unit_price: number
           updated_at: string
@@ -311,6 +312,7 @@ export type Database = {
           name: string
           stock?: number
           supplier: string
+          threshold?: number | null
           unit: string
           unit_price?: number
           updated_at?: string
@@ -323,6 +325,7 @@ export type Database = {
           name?: string
           stock?: number
           supplier?: string
+          threshold?: number | null
           unit?: string
           unit_price?: number
           updated_at?: string
@@ -573,6 +576,27 @@ export type Database = {
           name?: string
           products?: string[] | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      units: {
+        Row: {
+          abbreviation: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          abbreviation?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          abbreviation?: string | null
+          created_at?: string
+          id?: string
+          name?: string
         }
         Relationships: []
       }

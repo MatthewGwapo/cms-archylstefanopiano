@@ -10,6 +10,7 @@ export interface MaterialFormData {
   unit_price?: number;
   stock?: number;
   unit: string;
+  threshold?: number;
   last_order?: string;
 }
 

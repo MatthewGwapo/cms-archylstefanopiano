@@ -26,13 +26,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAddStock } from "@/hooks/useInventory";
-import { useInventory } from "@/hooks/useInventory";
+import { useMaterials, useUpdateMaterial } from "@/hooks/useMaterials";
 import { useProjects } from "@/hooks/useProjects";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { toast } from "sonner";
 
 const stockSchema = z.object({
-  inventory_id: z.string().min(1, "Select an item"),
+  material_id: z.string().min(1, "Select a material"),
   type: z.enum(["in", "out"]),
   quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
   project: z.string().optional(),
@@ -43,24 +43,24 @@ type StockFormValues = z.infer<typeof stockSchema>;
 interface AddStockModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultInventoryId?: string;
+  defaultMaterialId?: string;
   defaultType?: "in" | "out";
 }
 
 export function AddStockModal({ 
   open, 
   onOpenChange, 
-  defaultInventoryId,
+  defaultMaterialId,
   defaultType = "in" 
 }: AddStockModalProps) {
-  const addStock = useAddStock();
-  const { data: inventory } = useInventory();
+  const { data: materials } = useMaterials();
+  const updateMaterial = useUpdateMaterial();
   const { data: projects } = useProjects();
 
   const form = useForm<StockFormValues>({
     resolver: zodResolver(stockSchema),
     defaultValues: {
-      inventory_id: defaultInventoryId || "",
+      material_id: defaultMaterialId || "",
       type: defaultType,
       quantity: 1,
       project: "",
@@ -70,26 +70,44 @@ export function AddStockModal({
   useEffect(() => {
     if (open) {
       form.reset({
-        inventory_id: defaultInventoryId || "",
+        material_id: defaultMaterialId || "",
         type: defaultType,
         quantity: 1,
         project: "",
       });
     }
-  }, [open, defaultType, defaultInventoryId, form]);
+  }, [open, defaultType, defaultMaterialId, form]);
 
   const onSubmit = async (values: StockFormValues) => {
     try {
-      await addStock.mutateAsync({
-        inventory_id: values.inventory_id,
-        type: values.type,
-        quantity: values.quantity,
-        project: values.project === "__general__" ? undefined : values.project || undefined,
+      const selectedMaterial = materials?.find(m => m.id === values.material_id);
+      if (!selectedMaterial) {
+        toast.error("Material not found");
+        return;
+      }
+
+      // Validate stock out
+      if (values.type === "out" && selectedMaterial.stock < values.quantity) {
+        toast.error(`Insufficient stock. Available: ${selectedMaterial.stock}, Requested: ${values.quantity}`);
+        return;
+      }
+
+      // Calculate new stock
+      const newStock = values.type === "in" 
+        ? selectedMaterial.stock + values.quantity
+        : selectedMaterial.stock - values.quantity;
+
+      // Update material stock
+      await updateMaterial.mutateAsync({
+        id: values.material_id,
+        stock: newStock,
       });
+
+      toast.success(`Stock ${values.type === "in" ? "added" : "removed"} successfully`);
       form.reset();
       onOpenChange(false);
     } catch (error) {
-      // Error handled in hook
+      toast.error("Failed to update stock: " + (error as Error).message);
     }
   };
 
@@ -116,20 +134,20 @@ export function AddStockModal({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="inventory_id"
+              name="material_id"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Material *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select material" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {inventory?.map((item) => (
+                      {materials?.map((item) => (
                         <SelectItem key={item.id} value={item.id}>
-                          {item.name} (Current: {item.quantity} {item.unit})
+                          {item.name} (Current: {item.stock} {item.unit})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -210,9 +228,9 @@ export function AddStockModal({
               <Button 
                 type="submit" 
                 className="bg-gradient-orange"
-                disabled={addStock.isPending}
+                disabled={updateMaterial.isPending}
               >
-                {addStock.isPending ? "Processing..." : "Record Movement"}
+                {updateMaterial.isPending ? "Processing..." : "Record Movement"}
               </Button>
             </div>
           </form>
