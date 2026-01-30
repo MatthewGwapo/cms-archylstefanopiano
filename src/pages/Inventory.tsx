@@ -39,15 +39,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useInventory, useInventoryMovements } from "@/hooks/useInventory";
+import { useMaterials } from "@/hooks/useMaterials";
+import { useInventoryMovements } from "@/hooks/useInventory";
 import { AddStockModal } from "@/components/inventory/AddStockModal";
 import { InventoryHistoryModal } from "@/components/inventory/InventoryHistoryModal";
 import { SetThresholdModal } from "@/components/inventory/SetThresholdModal";
 import { format } from "date-fns";
-import { InventoryItem } from "@/types/database";
+import { Material } from "@/types/database";
 
 export default function Inventory() {
-  const { data: inventory, isLoading: inventoryLoading } = useInventory();
+  const { data: materials, isLoading: materialsLoading } = useMaterials();
   const { data: movements } = useInventoryMovements();
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,12 +56,13 @@ export default function Inventory() {
   const [addStockOpen, setAddStockOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [thresholdOpen, setThresholdOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<Material | null>(null);
   const [stockType, setStockType] = useState<"in" | "out">("in");
 
-  const filteredItems = (inventory || []).filter((item) => {
+  const filteredItems = (materials || []).filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || 
+      (statusFilter === "low" ? item.stock <= item.threshold : item.stock > item.threshold);
     return matchesSearch && matchesStatus;
   });
 
@@ -77,14 +79,14 @@ export default function Inventory() {
     setAddStockOpen(true);
   };
 
-  const handleSetThreshold = (item: InventoryItem) => {
+  const handleSetThreshold = (item: Material) => {
     setSelectedItem(item);
     setThresholdOpen(true);
   };
 
   // Calculate stats
-  const lowStockCount = (inventory || []).filter((i) => i.status === "low").length;
-  const totalValue = (inventory || []).reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+  const lowStockCount = (materials || []).filter((m) => m.stock <= m.threshold).length;
+  const totalValue = (materials || []).reduce((sum, m) => sum + m.stock * m.unit_price, 0);
   const recentMovements = movements?.slice(0, 4) || [];
 
   return (
@@ -132,7 +134,7 @@ export default function Inventory() {
                 <Package className="h-5 w-5 text-info" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{inventory?.length || 0}</p>
+                <p className="text-2xl font-bold">{materials?.length || 0}</p>
                 <p className="text-sm text-muted-foreground">Total Materials</p>
               </div>
             </div>
@@ -207,7 +209,7 @@ export default function Inventory() {
             </div>
           </CardHeader>
           <CardContent>
-            {inventoryLoading ? (
+            {materialsLoading ? (
               <div className="flex items-center justify-center h-32">
                 <Loader2 className="h-6 w-6 animate-spin text-accent" />
               </div>
@@ -228,18 +230,19 @@ export default function Inventory() {
                 </TableHeader>
                 <TableBody>
                   {filteredItems.map((item) => {
+                    const isLowStock = item.stock <= item.threshold;
                     const stockPercent = Math.min(
-                      (item.quantity / (item.threshold * 3)) * 100,
+                      (item.stock / (item.threshold * 3)) * 100,
                       100
                     );
-                    const itemValue = item.quantity * item.unit_price;
+                    const itemValue = item.stock * item.unit_price;
                     return (
                       <TableRow key={item.id} className="table-row-hover">
                         <TableCell>
                           <div>
                             <p className="font-medium">{item.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {item.quantity} {item.unit}
+                              {item.stock} {item.unit}
                             </p>
                           </div>
                         </TableCell>
@@ -249,7 +252,7 @@ export default function Inventory() {
                               value={stockPercent}
                               className={cn(
                                 "h-2",
-                                item.status === "low" && "[&>div]:bg-warning"
+                                isLowStock && "[&>div]:bg-warning"
                               )}
                             />
                             <p className="text-xs text-muted-foreground mt-1">
@@ -261,7 +264,7 @@ export default function Inventory() {
                           {formatCurrency(itemValue)}
                         </TableCell>
                         <TableCell>
-                          {item.status === "low" ? (
+                          {isLowStock ? (
                             <Badge className="badge-warning border">
                               <AlertTriangle className="h-3 w-3 mr-1" />
                               Low Stock

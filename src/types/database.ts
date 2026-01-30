@@ -97,6 +97,7 @@ export interface Material {
   unit_price: number;
   stock: number;
   unit: string;
+  threshold: number;
   last_order: string | null;
   created_at: string;
   updated_at: string;
@@ -178,4 +179,11 @@ export interface MaterialHistory {
   changed_by: string | null;
   created_at: string;
   material?: Material;
+}
+
+export interface Unit {
+  id: string;
+  name: string;
+  abbreviation: string | null;
+  created_at: string;
 }

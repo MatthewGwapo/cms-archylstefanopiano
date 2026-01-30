@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,6 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateMaterial, useUpdateMaterial } from "@/hooks/useMaterials";
+import { useSuppliers } from "@/hooks/useSuppliers";
+import { useUnits } from "@/hooks/useUnits";
 import { Material } from "@/types/database";
 
 const materialSchema = z.object({
@@ -59,19 +61,11 @@ const categories = [
   "Safety",
 ];
 
-const suppliers = [
-  "Holcim Philippines",
-  "Steel Asia",
-  "Metro Block Manufacturing",
-  "Phelps Dodge",
-  "Davao Sand & Gravel",
-  "Filply Corporation",
-  "Other",
-];
-
 export function MaterialFormModal({ open, onOpenChange, material }: MaterialFormModalProps) {
   const createMaterial = useCreateMaterial();
   const updateMaterial = useUpdateMaterial();
+  const { data: suppliers } = useSuppliers();
+  const { data: units } = useUnits();
   const isEditing = !!material;
 
   const form = useForm<MaterialFormValues>({
@@ -184,19 +178,30 @@ export function MaterialFormModal({ open, onOpenChange, material }: MaterialForm
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="unit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unit *</FormLabel>
+            <FormField
+              control={form.control}
+              name="unit"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Unit *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <Input placeholder="e.g. bag (40kg)" {...field} />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select unit" />
+                      </SelectTrigger>
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    <SelectContent>
+                      {units?.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.name}>
+                          {unit.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             </div>
 
             <FormField
@@ -212,9 +217,9 @@ export function MaterialFormModal({ open, onOpenChange, material }: MaterialForm
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {suppliers.map((sup) => (
-                        <SelectItem key={sup} value={sup}>
-                          {sup}
+                      {suppliers?.map((sup) => (
+                        <SelectItem key={sup.id} value={sup.name}>
+                          {sup.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
