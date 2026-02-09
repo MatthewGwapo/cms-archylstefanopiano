@@ -26,6 +26,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useProjects } from "@/hooks/useProjects";
 import { ProjectFormModal } from "@/components/projects/ProjectFormModal";
 import { ProjectDetailsModal } from "@/components/projects/ProjectDetailsModal";
@@ -44,15 +51,19 @@ export default function Projects() {
   const navigate = useNavigate();
   const { data: projects, isLoading, error } = useProjects();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [formOpen, setFormOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const filteredProjects = (projects || []).filter(
-    (project) =>
-      project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.client.toLowerCase().includes(searchQuery.toLowerCase())
+    (project) => {
+      const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.client.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === "all" || project.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    }
   );
 
   const formatCurrency = (amount: number) => {
@@ -78,42 +89,43 @@ export default function Projects() {
 
   const handleGenerateReport = (project: Project, e: React.MouseEvent) => {
     e.stopPropagation();
-    // Create a simple text report
-    const report = `
-PROJECT REPORT
-==============
-Project: ${project.name}
-Client: ${project.client}
-Location: ${project.location || "N/A"}
-Status: ${project.status}
-Progress: ${project.progress}%
+    import("jspdf").then(({ default: jsPDF }) => {
+      const doc = new jsPDF();
+      
+      doc.setFontSize(18);
+      doc.text(`METALIFT - Project Report`, 14, 22);
+      doc.setFontSize(14);
+      doc.text(project.name, 14, 34);
+      doc.setFontSize(10);
+      doc.text(`Generated: ${format(new Date(), "MMMM dd, yyyy 'at' h:mm a")}`, 14, 42);
 
-BUDGET SUMMARY
---------------
-Total Budget: ${formatCurrency(project.budget)}
-Amount Spent: ${formatCurrency(project.spent)}
-Remaining: ${formatCurrency(project.budget - project.spent)}
+      doc.setFontSize(12);
+      doc.text("Project Details", 14, 56);
+      doc.setFontSize(10);
+      const details = [
+        `Client: ${project.client}`,
+        `Location: ${project.location || "N/A"}`,
+        `Status: ${project.status}`,
+        `Progress: ${project.progress}%`,
+        `Start Date: ${project.start_date ? format(new Date(project.start_date), "MMM dd, yyyy") : "N/A"}`,
+        `End Date: ${project.end_date ? format(new Date(project.end_date), "MMM dd, yyyy") : "N/A"}`,
+        "",
+        "Budget Summary",
+        `Total Budget: ${formatCurrency(project.budget)}`,
+        `Amount Spent: ${formatCurrency(project.spent)}`,
+        `Remaining: ${formatCurrency(project.budget - project.spent)}`,
+        "",
+        "Description:",
+        project.description || "No description available.",
+      ];
+      
+      details.forEach((line, i) => {
+        doc.text(line, 14, 64 + i * 7);
+      });
 
-Dates: ${project.start_date ? format(new Date(project.start_date), "MMM dd, yyyy") : "N/A"} - ${project.end_date ? format(new Date(project.end_date), "MMM dd, yyyy") : "N/A"}
-
-Description:
-${project.description || "No description available."}
-
-Generated on: ${format(new Date(), "MMMM dd, yyyy 'at' h:mm a")}
-    `.trim();
-    
-    // Create and download the report
-    const blob = new Blob([report], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${project.name.replace(/\s+/g, "_")}_Report.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    toast.success("Report generated successfully");
+      doc.save(`${project.name.replace(/\s+/g, "_")}_Report.pdf`);
+      toast.success("PDF report generated successfully");
+    });
   };
 
   const handleCloseForm = () => {
@@ -164,10 +176,18 @@ Generated on: ${format(new Date(), "MMMM dd, yyyy 'at' h:mm a")}
             className="pl-10"
           />
         </div>
-        <Button variant="outline" className="gap-2">
-          <Filter className="h-4 w-4" />
-          Filter
-        </Button>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="planning">Planning</SelectItem>
+            <SelectItem value="in-progress">In Progress</SelectItem>
+            <SelectItem value="on-hold">On Hold</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Stats Overview */}

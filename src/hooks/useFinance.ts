@@ -31,7 +31,7 @@ export function useExpenses() {
         .order("date", { ascending: false });
       
       if (error) throw error;
-      return data as (Expense & { project: { name: string } | null })[];
+      return data as unknown as (Expense & { project: { name: string } | null })[];
     },
   });
 }
@@ -78,6 +78,31 @@ export function useUpdateExpense() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Expense updated successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to update expense: " + error.message);
+    },
+  });
+}
+
+export function useUpdateExpenseStatus() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { data, error } = await supabase
+        .from("expenses")
+        .update({ status })
+        .eq("id", id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data as Expense;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Expense status updated");
     },
     onError: (error) => {
       toast.error("Failed to update expense: " + error.message);

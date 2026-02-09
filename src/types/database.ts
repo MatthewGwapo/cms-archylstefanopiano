@@ -49,6 +49,7 @@ export interface Expense {
   amount: number;
   project_id: string | null;
   date: string;
+  status: string;
   created_at: string;
   project?: Project;
 }
