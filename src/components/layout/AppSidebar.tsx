@@ -11,15 +11,17 @@ import {
   ChevronRight,
   HardHat,
   Settings,
-  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuthContext } from "@/contexts/AuthContext";
+import type { AppRole } from "@/hooks/useAuth";
 
 interface NavItem {
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
+  roles?: AppRole[]; // if undefined, all roles can see
 }
 
 const mainNavItems: NavItem[] = [
@@ -32,29 +34,31 @@ const mainNavItems: NavItem[] = [
     title: "Projects",
     href: "/projects",
     icon: FolderKanban,
-    badge: "5",
+    roles: ["admin", "employee"],
   },
   {
     title: "Team",
     href: "/team",
     icon: Users,
-    badge: "12",
+    roles: ["admin", "employee"],
   },
   {
     title: "Finance",
     href: "/finance",
     icon: Wallet,
+    roles: ["admin", "finance"],
   },
   {
     title: "Inventory",
     href: "/inventory",
     icon: Package,
-    badge: "3",
+    roles: ["admin"],
   },
   {
     title: "Materials",
     href: "/materials",
     icon: Boxes,
+    roles: ["admin"],
   },
 ];
 
@@ -69,6 +73,11 @@ const bottomNavItems: NavItem[] = [
 export function AppSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
+  const { role } = useAuthContext();
+
+  const visibleNavItems = mainNavItems.filter(
+    (item) => !item.roles || (role && item.roles.includes(role))
+  );
 
   return (
     <aside
@@ -102,8 +111,8 @@ export function AppSidebar() {
       {/* Main Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
         <div className="space-y-1">
-          {mainNavItems.map((item) => {
-            const isActive = location.pathname === item.href;
+          {visibleNavItems.map((item) => {
+            const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + "/");
             return (
               <NavLink
                 key={item.href}

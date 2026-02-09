@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { useExpenses, usePayroll, useUpdatePayrollStatus } from "@/hooks/useFinance";
+import { useExpenses, usePayroll, useUpdatePayrollStatus, useUpdateExpenseStatus } from "@/hooks/useFinance";
 import { ExpenseFormModal } from "@/components/finance/ExpenseFormModal";
 import { PayrollRequestModal } from "@/components/finance/PayrollRequestModal";
 import { format, subDays, subMonths, isAfter } from "date-fns";
@@ -53,6 +53,7 @@ export default function Finance() {
   const { data: expenses, isLoading: expensesLoading } = useExpenses();
   const { data: payroll, isLoading: payrollLoading } = usePayroll();
   const updatePayrollStatus = useUpdatePayrollStatus();
+  const updateExpenseStatus = useUpdateExpenseStatus();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -104,62 +105,59 @@ export default function Finance() {
   };
 
   const handleExportReport = () => {
-    const expenseData = filteredExpenses.map((e) => ({
-      description: e.description,
-      category: e.category,
-      amount: e.amount,
-      project: e.project?.name || "All Projects",
-      date: e.date,
-    }));
+    import("jspdf").then(({ default: jsPDF }) => {
+      import("jspdf-autotable").then(({ default: autoTable }) => {
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.text("METALIFT - Finance Report", 14, 22);
+        doc.setFontSize(10);
+        doc.text(`Generated: ${format(new Date(), "MMMM dd, yyyy 'at' h:mm a")}`, 14, 30);
+        doc.text(`Filter: ${selectedCategory !== "All" ? selectedCategory : "All Categories"} | ${dateFilter !== "all" ? dateFilter : "All Time"}`, 14, 36);
 
-    const report = `
-FINANCE REPORT
-==============
-Generated: ${format(new Date(), "MMMM dd, yyyy 'at' h:mm a")}
-Filter: ${selectedCategory !== "All" ? selectedCategory : "All Categories"} | ${dateFilter !== "all" ? dateFilter : "All Time"}
+        // Expense summary
+        doc.setFontSize(14);
+        doc.text("Expense Summary", 14, 48);
+        doc.setFontSize(10);
+        doc.text(`Total Expenses: ${formatCurrency(filteredExpenses.reduce((sum, e) => sum + e.amount, 0))}`, 14, 56);
+        doc.text(`Number of Records: ${filteredExpenses.length}`, 14, 62);
 
-EXPENSE SUMMARY
----------------
-Total Expenses: ${formatCurrency(filteredExpenses.reduce((sum, e) => sum + e.amount, 0))}
-Number of Records: ${filteredExpenses.length}
+        // Expense table
+        autoTable(doc, {
+          startY: 68,
+          head: [["Date", "Description", "Category", "Project", "Amount", "Status"]],
+          body: filteredExpenses.map((e) => [
+            format(new Date(e.date), "MMM dd, yyyy"),
+            e.description,
+            e.category,
+            e.project?.name || "All Projects",
+            formatCurrency(e.amount),
+            e.status,
+          ]),
+        });
 
-EXPENSE BREAKDOWN BY CATEGORY
------------------------------
-${Object.entries(
-  filteredExpenses.reduce((acc, e) => {
-    acc[e.category] = (acc[e.category] || 0) + e.amount;
-    return acc;
-  }, {} as Record<string, number>)
-)
-  .map(([cat, amount]) => `${cat}: ${formatCurrency(amount)}`)
-  .join("\n")}
+        // Payroll section
+        const finalY = (doc as any).lastAutoTable?.finalY || 120;
+        doc.setFontSize(14);
+        doc.text("Payroll Summary", 14, finalY + 12);
+        doc.setFontSize(10);
+        doc.text(`Total Payroll: ${formatCurrency((payroll || []).reduce((sum, p) => sum + p.net_pay, 0))}`, 14, finalY + 20);
 
-EXPENSE DETAILS
----------------
-${expenseData.map((e) => `${e.date} | ${e.category} | ${e.description} | ${formatCurrency(e.amount)} | ${e.project}`).join("\n")}
+        autoTable(doc, {
+          startY: finalY + 26,
+          head: [["Period", "Employee", "Net Pay", "Status"]],
+          body: (payroll || []).map((p) => [
+            p.period,
+            p.employee?.name || "Unknown",
+            formatCurrency(p.net_pay),
+            p.status,
+          ]),
+        });
 
-PAYROLL SUMMARY
----------------
-Total Payroll: ${formatCurrency((payroll || []).reduce((sum, p) => sum + p.net_pay, 0))}
-Pending: ${(payroll || []).filter((p) => p.status === "pending").length} records
-Paid: ${(payroll || []).filter((p) => p.status === "paid").length} records
-
-PAYROLL DETAILS
----------------
-${(payroll || []).map((p) => `${p.period} | ${p.employee?.name} | ${formatCurrency(p.net_pay)} | ${p.status}`).join("\n")}
-    `.trim();
-
-    const blob = new Blob([report], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Finance_Report_${format(new Date(), "yyyy-MM-dd")}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast.success("Report exported successfully");
+        doc.save(`Finance_Report_${format(new Date(), "yyyy-MM-dd")}.pdf`);
+        toast.success("PDF report exported successfully");
+      });
+    });
   };
 
   // Calculate stats
@@ -335,28 +333,50 @@ ${(payroll || []).map((p) => `${p.period} | ${p.employee?.name} | ${formatCurren
                       <TableHead>Category</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredExpenses.map((record) => (
-                      <TableRow key={record.id} className="table-row-hover">
-                        <TableCell className="font-medium">
-                          {record.description}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {record.project?.name || "All Projects"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{record.category}</Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {format(new Date(record.date), "MMM dd, yyyy")}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {formatCurrency(record.amount)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredExpenses.map((record) => {
+                      const expStatus = statusConfig[record.status] || statusConfig.pending;
+                      return (
+                        <TableRow key={record.id} className="table-row-hover">
+                          <TableCell className="font-medium">
+                            {record.description}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {record.project?.name || "All Projects"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{record.category}</Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {format(new Date(record.date), "MMM dd, yyyy")}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {formatCurrency(record.amount)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={cn("border", expStatus.class)}>
+                              {expStatus.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {record.status === "pending" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateExpenseStatus.mutateAsync({ id: record.id, status: "paid" })}
+                                disabled={updateExpenseStatus.isPending}
+                              >
+                                Mark Paid
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
