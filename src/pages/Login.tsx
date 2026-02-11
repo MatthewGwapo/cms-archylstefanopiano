@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { HardHat, Loader2, Mail, Lock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -111,12 +111,13 @@ export default function Login() {
               </Button>
             </form>
 
-            <p className="mt-4 text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/signup" className="text-accent hover:underline font-medium">
-                Sign up
-              </Link>
-            </p>
+            <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-border">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Test Accounts:</p>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p><strong>Project Manager:</strong> pm_user@metalift.com / Pm1234!</p>
+                <p><strong>Employee:</strong> employee_user@metalift.com / Emp1234!</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
